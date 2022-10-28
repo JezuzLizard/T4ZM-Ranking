@@ -6,7 +6,12 @@ main()
 	replaceFunc( maps\_laststand::revive_success, ::revive_success_override );
 	replaceFunc( maps\_challenges_coop::ch_kills, ::ch_kills_override );
 	replaceFunc( maps\_challenges_coop::mayProcessChallenges, ::mayProcessChallenges_override );
-	setDvar( "scr_xpscale", 1 );
+	if ( !isDefined( level._custom_funcs_table ) )
+	{
+		level._custom_funcs_table = [];
+	}
+	level._custom_func_table[ "say_revived_vo" ] = getFunction( "maps/_laststand", "say_revived_vo" );
+	setDvar( "scr_xpscale", getRankDvarIntDefault( "scr_ranking_xp_scale", 1 ) );
 	level._xp_events = [];
 	level._xp_events[ "kill" ] = getRankDvarIntDefault( "scr_ranking_xp_per_kill", 5 );
 	level._xp_events[ "round_base" ] = getRankDvarIntDefault( "scr_ranking_xp_round_base", 10 );
@@ -133,6 +138,11 @@ giveRankXP( type, value, levelEnd )
 	{
 		levelEnd = false;
 	}
+	
+	if ( isDefined( level._xp_events[ type ] ) && !isDefined( value ) )
+	{
+		value = level._xp_events[ type ];
+	}
 
 	value = int( value * level.xpScale );
 	if ( value < 1 )
@@ -172,7 +182,7 @@ ch_kills_override( victim )
 		return;
 	}
 	player = victim.attacker;
-	player giveRankXP( "kill", level._xp_events[ "kill" ] );
+	player giveRankXP( "kill" );
 }
 
 revive_success_override( reviver )
@@ -184,7 +194,7 @@ revive_success_override( reviver )
 	reviver.revives++;
 	//stat tracking
 	reviver.stats["revives"] = reviver.revives;
-	reviver giveRankXP( "purchase", level._xp_events[ "revive" ] );
+	reviver giveRankXP( "revive" );
 	// CODER MOD: TOMMY K - 07/30/08
 	reviver thread maps\_arcademode::arcadeMode_player_revive();
 	setClientSysState("lsm", "0", self);	// Notify client last stand ended.
@@ -236,13 +246,13 @@ award_xp_for_purchased_trigger()
 					{
 						continue;
 					}
-					players[ i ] giveRankXP( "power", level._xp_events[ "power" ] );
+					players[ i ] giveRankXP( "power" );
 				}
 				break;
 			}
 		 	else if( isDefined( self.zombie_cost ) && who.score >= self.zombie_cost )
 			{
-				who giveRankXP( "purchase", level._xp_events[ "door" ] );
+				who giveRankXP( "purchase" );
 				break;
 			}
 		}
