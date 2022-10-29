@@ -11,6 +11,7 @@ main()
 		level._custom_funcs_table = [];
 	}
 	level._custom_func_table[ "say_revived_vo" ] = getFunction( "maps/_laststand", "say_revived_vo" );
+	level._custom_func_table[ "giveRankXP" ] = ::giveRankXP;
 	setDvar( "scr_xpscale", getRankDvarIntDefault( "scr_ranking_xp_scale", 1 ) );
 	level._xp_events = [];
 	level._xp_events[ "kill" ] = getRankDvarIntDefault( "scr_ranking_xp_per_kill", 5 );
@@ -129,10 +130,6 @@ mayProcessChallenges_override()
 
 giveRankXP( type, value, levelEnd )
 {
-	if ( value < 1 )
-	{
-		return;
-	}
 	self endon("disconnect");
 	if(	!isDefined( levelEnd ) )
 	{
@@ -143,7 +140,10 @@ giveRankXP( type, value, levelEnd )
 	{
 		value = level._xp_events[ type ];
 	}
-
+	if ( !isDefined( value ) )
+	{
+		return;
+	}
 	value = int( value * level.xpScale );
 	if ( value < 1 )
 	{
