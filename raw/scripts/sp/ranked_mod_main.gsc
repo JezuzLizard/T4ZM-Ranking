@@ -17,11 +17,20 @@ main()
 	level._xp_events = [];
 	level._xp_events[ "kill" ] = getRankDvarIntDefault( "scr_ranking_xp_per_kill", 5 );
 	level._xp_events[ "round_base" ] = getRankDvarIntDefault( "scr_ranking_xp_round_base", 10 );
-	level._xp_events[ "round_cap" ] = getRankDvarIntDefault( "scr_ranking_xp_round_cap", 300 );
 	level._xp_events[ "revive" ] = getRankDvarIntDefault( "scr_ranking_xp_per_revive", 15 );
 	level._xp_events[ "door" ] = getRankDvarIntDefault( "scr_ranking_xp_per_door", 25 );
 	level._xp_events[ "power" ] = getRankDvarIntDefault( "scr_ranking_xp_power", 50 );
 	level.ranking_show_kill_xp_on_hud = getRankDvarIntDefault( "scr_ranking_show_kill_xp_on_hud", 1 );
+	level.xp_round_bonus = getRankDvarFloatDefault( "scr_ranking_round_bonus_mult", 0.02 );
+	level.xp_round_floor_bonus = getRankDvarFloatDefault( "scr_ranking_round_floor_bonus_mult", 2.5 );
+	level.xp_round_floor_threshold = getRankDvarIntDefault( "scr_ranking_round_floor_threshold", 10 );
+	level.xp_round_floor_reached_count = 0;
+	level.xp_player_count_bonus = [];
+	max_clients = getDvarInt( "sv_maxclients" );
+	for ( i = 1; i < max_clients + 1; i++ )
+	{
+		level.xp_player_count_bonus[ i + "player" ] = getRankDvarFloatDefault( "scr_ranking_" + i + "player_bonus", 1 + ( ( i - 1 ) * 0.20 ) );
+	}
 	precachestring( &"SCRIPT_PLUS" );
 	level thread on_player_connect();
 	level thread on_round_over();
@@ -107,10 +116,10 @@ onPlayerSpawned()
 
 award_round_completion_xp()
 {
-	xp_value = int( ( level._xp_events[ "round_base" ] * ( level.round_number - 1 ) ) ); 
-	if ( xp_value > level._xp_events[ "round_cap" ] )
+	xp_value = level._xp_events[ "round_base" ] * ( level.round_number - 1 ); 
+	if ( ( ( level.round_number - 1 ) % level.xp_round_floor_threshold ) == 0 )
 	{
-		xp_value = level._xp_events[ "round_cap" ];
+		xp_value *= level.xp_round_floor_bonus;
 	}
 	players = getPlayers();
 	for ( i = 0; i < players.size; i++ )
@@ -120,7 +129,7 @@ award_round_completion_xp()
 		{
 			continue;
 		}
-		player giveRankXP( "round_completion", xp_value );
+		player giveRankXP( "round_completion", int( xp_value ) );
 	}
 }
 
@@ -145,7 +154,8 @@ giveRankXP( type, value, levelEnd )
 	{
 		return;
 	}
-	value = int( value * level.xpScale );
+	player_count = getPlayers().size;
+	value = int( ceil( ( floor( value + ( value * level.round_number * level.xp_round_bonus ) ) * level.xp_player_count_bonus[ player_count + "player" ] ) ) * level.xpScale );
 	if ( value < 1 )
 	{
 		return;
@@ -339,5 +349,18 @@ getRankDvarIntDefault( dvar, value )
 	else 
 	{
 		return getDvarInt( dvar );
+	}
+}
+
+getRankDvarFloatDefault( dvar, value )
+{
+	if ( getDvar( dvar ) == "" )
+	{
+		setDvar( dvar, value );
+		return value;
+	}
+	else 
+	{
+		return getDvarFloat( dvar );
 	}
 }
