@@ -13,6 +13,7 @@ main()
 	level._custom_func_table[ "say_revived_vo" ] = getFunction( "maps/_laststand", "say_revived_vo" );
 	level._custom_func_table[ "giveRankXP" ] = ::giveRankXP;
 	setDvar( "scr_xpscale", getRankDvarIntDefault( "scr_ranking_xp_scale", 1 ) );
+	setDvar( "onlinegame", 1 ); //Force online game to be true even in solo matches
 	level._xp_events = [];
 	level._xp_events[ "kill" ] = getRankDvarIntDefault( "scr_ranking_xp_per_kill", 5 );
 	level._xp_events[ "round_base" ] = getRankDvarIntDefault( "scr_ranking_xp_round_base", 10 );
@@ -87,7 +88,7 @@ onPlayerSpawned()
 
 		if(!isdefined(self.hud_rankscroreupdate))
 		{
-			self.hud_rankscroreupdate = NewScoreHudElem(self);
+			self.hud_rankscroreupdate = newClientHudElem(self);
 			self.hud_rankscroreupdate.horzAlign = "center";
 			self.hud_rankscroreupdate.vertAlign = "middle";
 			self.hud_rankscroreupdate.alignX = "center";
@@ -111,7 +112,7 @@ award_round_completion_xp()
 	{
 		xp_value = level._xp_events[ "round_cap" ];
 	}
-	players = get_players();
+	players = getPlayers();
 	for ( i = 0; i < players.size; i++ )
 	{
 		player = players[ i ];
@@ -159,11 +160,11 @@ giveRankXP( type, value, levelEnd )
 		case "kill":
 			if ( level.ranking_show_kill_xp_on_hud )
 			{
-				self updateRankScoreHUD_MP( value );
+				self thread updateRankScoreHUD_MP( value );
 			}
 			break;
 		default:
-			self updateRankScoreHUD_MP( value );
+			self thread updateRankScoreHUD_MP( value );
 			break;
 	}
 		
@@ -239,7 +240,7 @@ award_xp_for_purchased_trigger()
 		{
 			if ( self.targetname == "use_master_switch" || self.targetname == "use_power_switch" )
 			{
-				players = get_players();
+				players = getPlayers();
 				for ( i = 0; i < players.size; i++ )
 				{
 					if ( !maps\_zombiemode_utility::is_player_valid( players[ i ] ) )
@@ -252,7 +253,7 @@ award_xp_for_purchased_trigger()
 			}
 		 	else if( isDefined( self.zombie_cost ) && who.score >= self.zombie_cost )
 			{
-				who giveRankXP( "purchase" );
+				who giveRankXP( "door" );
 				break;
 			}
 		}
@@ -332,6 +333,7 @@ getRankDvarIntDefault( dvar, value )
 {
 	if ( getDvar( dvar ) == "" )
 	{
+		setDvar( dvar, value );
 		return value;
 	}
 	else 
