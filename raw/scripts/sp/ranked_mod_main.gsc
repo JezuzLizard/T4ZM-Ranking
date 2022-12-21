@@ -21,16 +21,17 @@ main()
 	level._xp_events[ "door" ] = getRankDvarIntDefault( "scr_ranking_xp_per_door", 25 );
 	level._xp_events[ "power" ] = getRankDvarIntDefault( "scr_ranking_xp_power", 50 );
 	level.ranking_show_kill_xp_on_hud = getRankDvarIntDefault( "scr_ranking_show_kill_xp_on_hud", 1 );
-	level.xp_round_bonus = getRankDvarFloatDefault( "scr_ranking_round_bonus_mult", 0.02 );
+	//level.xp_round_bonus = getRankDvarFloatDefault( "scr_ranking_round_bonus_mult", 0.02 );
 	level.xp_round_floor_bonus = getRankDvarFloatDefault( "scr_ranking_round_floor_bonus_mult", 2.5 );
 	level.xp_round_floor_threshold = getRankDvarIntDefault( "scr_ranking_round_floor_threshold", 10 );
-	level.xp_round_floor_reached_count = 0;
+	/*
 	level.xp_player_count_bonus = [];
 	max_clients = getDvarInt( "sv_maxclients" );
 	for ( i = 1; i < max_clients + 1; i++ )
 	{
 		level.xp_player_count_bonus[ i + "player" ] = getRankDvarFloatDefault( "scr_ranking_" + i + "player_bonus", 1 + ( ( i - 1 ) * 0.20 ) );
 	}
+	*/
 	precachestring( &"SCRIPT_PLUS" );
 	level thread on_player_connect();
 	level thread on_round_over();
@@ -155,7 +156,7 @@ giveRankXP( type, value, levelEnd )
 		return;
 	}
 	player_count = getPlayers().size;
-	value = int( ceil( ( floor( value + ( value * level.round_number * level.xp_round_bonus ) ) * level.xp_player_count_bonus[ player_count + "player" ] ) ) * level.xpScale );
+	value = int( value * level.xpScale );
 	if ( value < 1 )
 	{
 		return;
