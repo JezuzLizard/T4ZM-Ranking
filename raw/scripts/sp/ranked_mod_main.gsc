@@ -4,7 +4,7 @@
 main()
 {
 	replaceFunc( maps\_laststand::revive_success, ::revive_success_override );
-	replaceFunc( maps\_challenges_coop::ch_kills, ::ch_kills_override );
+	//replaceFunc( maps\_challenges_coop::ch_kills, ::ch_kills_override );
 	replaceFunc( maps\_challenges_coop::mayProcessChallenges, ::mayProcessChallenges_override );
 	if ( !isDefined( level._custom_funcs_table ) )
 	{
@@ -24,6 +24,9 @@ main()
 	//level.xp_round_bonus = getRankDvarFloatDefault( "scr_ranking_round_bonus_mult", 0.02 );
 	level.xp_round_floor_bonus = getRankDvarFloatDefault( "scr_ranking_round_floor_bonus_mult", 2.5 );
 	level.xp_round_floor_threshold = getRankDvarIntDefault( "scr_ranking_round_floor_threshold", 10 );
+	level.xp_killstreak_max_grace_period = getRankDvarFloatDefault( "scr_ranking_killstreak_grace_period", 3 );
+	level.xp_killstreak_threshold_floor = getRankDvarIntDefault( "scr_ranking_killstreak_threshold_floor", 8 );
+	level.xp_killstreak_bonus = getRankDvarIntDefault( "scr_ranking_killstreak_bonus", 20 );
 	/*
 	level.xp_player_count_bonus = [];
 	max_clients = getDvarInt( "sv_maxclients" );
@@ -40,6 +43,14 @@ main()
 init()
 {
 	level thread add_trigger_callbacks();
+	if ( !isDefined( level.on_actor_killed_callbacks ) )
+	{
+		level.on_actor_killed_callbacks = [];
+	}
+	level.on_actor_killed_callbacks[ level.on_actor_killed_callbacks.size ] = ::ch_kills_override;
+	level.on_actor_killed_callbacks[ level.on_actor_killed_callbacks.size ] = ::watch_xp_killstreak;
+	level.callbackActorKilled = ::Callback_ActorKilled_override;
+	level.t4zm_ranking_init_done = true;
 }
 
 on_round_over()
@@ -83,6 +94,7 @@ on_player_connect()
 	while ( true )
 	{
 		level waittill( "connected", player );
+		player.xp_recent_kills = 0;
 		player.rankUpdateTotal = 0;
 		player thread onPlayerSpawned();
 	}
@@ -187,14 +199,51 @@ giveRankXP( type, value, levelEnd )
 	self maps\_challenges_coop::syncXPStat();
 }
 
-ch_kills_override( victim )
+ch_kills_override( eInflictor, eAttacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, iTimeOffset )
 {
-	if ( !isDefined( victim.attacker ) || !isPlayer( victim.attacker ) || victim.team == "allies" )
+	if ( !isDefined( self ) || !isAlive( self ) )
 	{
 		return;
 	}
-	player = victim.attacker;
+	if ( !isDefined( eAttacker ) || !isPlayer( eAttacker ) || self.team == "allies" )
+	{
+		return;
+	}
+	player = eAttacker;
 	player giveRankXP( "kill" );
+}
+
+watch_xp_killstreak( eInflictor, eAttacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, iTimeOffset )
+{
+	if ( !isDefined( self ) || !isAlive( self ) )
+	{
+		return;
+	}
+	if ( !isDefined( eAttacker ) || !isPlayer( eAttacker ) || self.team == "allies" )
+	{
+		return;
+	}
+
+	player = eAttacker;
+	player.xp_recent_kills++;
+	if ( player.xp_recent_kills >= level.xp_killstreak_threshold_floor )
+	{
+		player giveRankXP( "killstreak", level.xp_killstreak_bonus );
+		player.xp_recent_kills = 0;
+	}
+	player thread end_killstreak_after_time();
+}
+
+end_killstreak_after_time()
+{
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	self notify( "watch_killstreak" );
+	self endon( "watch_killstreak" );
+
+	wait level.xp_killstreak_max_grace_period;
+
+	self.xp_recent_kills = 0;
 }
 
 revive_success_override( reviver )
@@ -363,5 +412,16 @@ getRankDvarFloatDefault( dvar, value )
 	else 
 	{
 		return getDvarFloat( dvar );
+	}
+}
+
+Callback_ActorKilled_override( eInflictor, eAttacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, iTimeOffset )
+{
+	if ( isDefined( level.on_actor_killed_callbacks ) && level.on_actor_killed_callbacks.size > 0 )
+	{
+		for ( i = 0; i < level.on_actor_killed_callbacks.size; i++ )
+		{
+			self [[ level.on_actor_killed_callbacks[ i ] ]]( eInflictor, eAttacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, iTimeOffset );
+		}
 	}
 }
